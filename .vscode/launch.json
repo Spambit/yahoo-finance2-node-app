@@ -16,7 +16,7 @@
         },
         {
             "type": "node",
-            "name": "Debug TypeScript",
+            "name": "Attach Process",
             "request": "attach",
             "port": 9229,
             "sourceMaps": true,
