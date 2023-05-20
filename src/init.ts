@@ -16,18 +16,7 @@ app.use(bodyParser.json());
 app.get('/quote/:symbol', async (req: Request, res: Response) => {
   try {
     const { symbol } = req.params;
-
-    const quote = await yahooFinance.quoteSummary(symbol, {modules: "all", formatted: true}, {validateResult: false});
-    res.send(quote);
-  } catch (error) {
-    console.error(error);
-    res.status(500).send(error.message);
-  }
-});
-app.get('/alpha/:symbol', async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.params;
-    const alpaBeta = await MutualFund.getAlphaBeta(symbol);
+    const alpaBeta = await MutualFund.quote(symbol);
     res.send(alpaBeta);
   } catch (error) {
     console.error(error);
