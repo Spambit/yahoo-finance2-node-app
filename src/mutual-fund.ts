@@ -3,134 +3,235 @@ import { build, WorkSheet } from "node-xlsx";
 import * as fs from "fs";
 import path from "path";
 import yahooFinance from "yahoo-finance2";
-import { SearchQuoteYahooFund } from "yahoo-finance2/dist/esm/src/modules/search";
 
 export interface Row {
   id: string; //fund code
   name: string;
-  alpha?: number;
-  beta?: number;
-  sharp_ratio?: number;
   turnOver?: string;
+
   return_1y?: number;
   return_3y?: number;
   return_5y?: number;
   return_10y?: number;
+
+  alpha_3y: number;
+  alpha_5y: number;
+  alpha_10y: number;
+
+  beta_3y: number;
+  beta_5y: number;
+  beta_10y: number;
+
+  standard_deviation_3y: number;
+  standard_deviation_5y: number;
+  standard_deviation_10y: number;
+  r_squared_3y: number;
+  r_squared_5y: number;
+  r_squared_10y: number;
+
+  sharp_ratio_3y: number;
+  sharp_ratio_5y: number;
+  sharp_ratio_10y: number;
+
   expense_ratio?: number;
-  r_squared?: string;
-  standard_deviation?: string;
   riskometer?: "high" | "medium" | "low";
-  morningstar_rating?: number;
+  morningstar_risk_rating?: number;
+  morningstar_overall_rating?: number;
   no_of_stocks?: number;
+  marketCap?: number;
   holdings?: { name: string, percentage: number}[];
 }
 
-class RowIml implements Row {
+class OrderedRowData implements Row {
   id: string;
   name: string;
-  alpha?: number;
-  beta?: number;
-  sharp_ratio?: number;
   turnOver?: string;
   return_1y?: number;
   return_3y?: number;
   return_5y?: number;
   return_10y?: number;
+
+  alpha_3y: number;
+  alpha_5y: number;
+  alpha_10y: number;
+
+  beta_3y: number;
+  beta_5y: number;
+  beta_10y: number;
+
+  standard_deviation_3y: number;
+  standard_deviation_5y: number;
+  standard_deviation_10y: number;
+  r_squared_3y: number;
+  r_squared_5y: number;
+  r_squared_10y: number;
+
+  sharp_ratio_3y: number;
+  sharp_ratio_5y: number;
+  sharp_ratio_10y: number;
+
   expense_ratio?: number;
-  r_squared?: string;
-  standard_deviation?: string;
   riskometer: "high" | "medium" | "low";
   morningstar_risk_rating?: number;
   morningstar_overall_rating?: number;
   no_of_stocks?: number;
+  marketCap?: number;
   holdings?: { name: string, percentage: number}[];
-  constructor() {
+  constructor(row?: Row) {
     // Following order is important.
     // xls rows are created in this order.
-    // Order of the Row interface declaration is not important.
-    this.id = undefined;
-    this.name = undefined;
-    this.alpha = undefined;
-    this.beta = undefined;
-    this.sharp_ratio = undefined;
-    this.turnOver = undefined;
-    this.return_1y = undefined;
-    this.return_3y = undefined;
-    this.return_5y = undefined;
-    this.return_10y = undefined;
-    this.expense_ratio = undefined;
-    this.r_squared = undefined;
-    this.standard_deviation = undefined;
-    this.riskometer = undefined;
-    this.morningstar_risk_rating = undefined;
-    this.morningstar_overall_rating = undefined;
-    this.no_of_stocks = undefined;
-    this.holdings = undefined;
+    // Order of the the interfacr named Row declaration is not important.
+    this.id = row?.id || undefined;
+    this.name = row?.name || undefined;
+
+    this.return_1y = row?.return_1y ||undefined;
+    this.return_3y = row?.return_3y ||undefined;
+    this.return_5y = row?.return_5y ||undefined;
+    this.return_10y = row?.return_10y ||undefined;
+
+    this.alpha_3y = row?.alpha_3y ||undefined;
+    this.alpha_5y = row?.alpha_5y ||undefined;
+    this.alpha_10y = row?.alpha_10y ||undefined;
+
+    this.beta_3y = row?.beta_3y ||undefined;
+    this.beta_5y = row?.beta_5y ||undefined;
+    this.beta_10y = row?.beta_10y ||undefined;
+
+    this.standard_deviation_3y = row?.standard_deviation_3y ||undefined;
+    this.standard_deviation_5y = row?.standard_deviation_5y ||undefined;
+    this.standard_deviation_10y = row?.standard_deviation_10y ||undefined;
+
+    this.r_squared_3y = row?.r_squared_3y ||undefined;
+    this.r_squared_5y = row?.r_squared_5y ||undefined;
+    this.r_squared_10y = row?.r_squared_10y ||undefined;
+
+    this.sharp_ratio_3y = row?.sharp_ratio_3y ||undefined;
+    this.sharp_ratio_5y = row?.sharp_ratio_5y ||undefined;
+    this.sharp_ratio_10y = row?.sharp_ratio_10y ||undefined;
+
+    this.return_1y = row?.return_1y ||undefined;
+    this.return_3y = row?.return_3y ||undefined;
+    this.return_5y = row?.return_5y ||undefined;
+    this.return_10y = row?.return_10y ||undefined;
+
+    this.expense_ratio = row?.expense_ratio ||undefined;
+    this.riskometer = row?.riskometer ||undefined;
+    this.morningstar_risk_rating = row?.morningstar_risk_rating ||undefined;
+    this.morningstar_overall_rating = row?.morningstar_overall_rating ||undefined;
+    this.no_of_stocks = row?.no_of_stocks ||undefined;
+    this.marketCap = row?.marketCap || undefined;
+    this.holdings = row?.holdings ||undefined;
+    this.turnOver = row?.turnOver || undefined;
   }
 }
 
 export class MutualFund {
-  public static quote(fundSymbol: string) {
-    return yahooFinance.quoteSummary(fundSymbol).then((results) => {
+  public static quote(fundSymbol: string): Promise<Row> {
+    // IMPROTANT : TypeScript type info will not be available if validateResult = false
+    // so, dev time validateResult = true will be helpful for intelisence
+    return yahooFinance.quoteSummary(fundSymbol, { formatted: true, modules: "all"}, {validateResult: false})
+    .catch(err => {
+      //ignore
+    })
+    .then((results) => {
       if (!results) {
-        throw new Error(
-          `Failed to get data for one of the symbols: ${fundSymbol}`
-        );
+        // ignore for now
+        // throw new Error(
+        //   `Failed to get data for one of the symbols: ${fundSymbol}`
+        // );
+        return new OrderedRowData(); // return all undefined fields - but don't fail it
       }
 
       const quoteType = results?.quoteType;
-      const riskStats = results?.fundPerformance?.riskOverviewStatistics!;
-      const trailingReturn = results?.fundPerformance.trailingReturns;
+      const trailingReturn = results?.fundPerformance?.trailingReturns;
       const defaultKeyStatistics = results?.defaultKeyStatistics;
-      const stat = riskStats.riskStatistics[0];
+      const riskStats = results?.fundPerformance?.riskOverviewStatistics?.riskStatistics;
+
+      const y3Data = riskStats.find((risk) => risk?.year?.includes('3'));
+      const y5Data = riskStats.find((risk) => risk?.year?.includes('5'));
+      const y10Data = riskStats.find((risk) => risk?.year?.includes('10'));
+
+      const alpha_3y = y3Data.alpha;
+      const alpha_5y = y5Data.alpha;
+      const alpha_10y = y10Data.alpha;
+    
+      const beta_3y = y3Data.beta;
+      const beta_5y = y5Data.beta;
+      const beta_10y = y10Data.beta;
+    
+      const standard_deviation_3y = y3Data.stdDev;
+      const standard_deviation_5y = y5Data.stdDev;
+      const standard_deviation_10y = y10Data.stdDev;
+      
+      const r_squared_3y = y3Data.rSquared;
+      const r_squared_5y = y5Data.rSquared;
+      const r_squared_10y = y10Data.rSquared;
+    
+      const sharp_ratio_3y = y3Data.sharpeRatio;
+      const sharp_ratio_5y = y5Data.sharpeRatio;
+      const sharp_ratio_10y = y10Data.sharpeRatio;
 
       const code = fundSymbol;
-      const alpha = stat.alpha;
-      const beta = stat.beta;
-      const sharp_ratio = stat.sharpeRatio;
-      const r_squared = stat.rSquared;
-      const name = quoteType.longName;
-      const return_3y = trailingReturn.threeYear;
-      const return_5y = trailingReturn.fiveYear;
-      const return_10y = trailingReturn.tenYear;
-      const return_1y = trailingReturn.oneYear;
-      const morningstar_overall_rating = defaultKeyStatistics.morningStarOverallRating;
-      const morningstar_risk_rating = defaultKeyStatistics.morningStarRiskRating;
-      const holdings: { name: string, percentage: number}[] = results.topHoldings.holdings.map(holding => { 
+      const name = quoteType?.longName;
+      const return_3y = trailingReturn?.threeYear;
+      const return_5y = trailingReturn?.fiveYear;
+      const return_10y = trailingReturn?.tenYear;
+      const return_1y = trailingReturn?.oneYear;
+      const morningstar_overall_rating = defaultKeyStatistics?.morningStarOverallRating;
+      const morningstar_risk_rating = defaultKeyStatistics?.morningStarRiskRating;
+      const holdings: { name: string, percentage: number}[] = results?.topHoldings?.holdings?.map(holding => { 
           return { name :holding.holdingName, percentage: holding.holdingPercent }
         });
-      const expense_ratio = results?.fundProfile.feesExpensesInvestment.netExpRatio;
-      const no_of_stocks = results?.balanceSheetHistory.balanceSheetStatements.map(sheet => {
-        return sheet.totalStockholderEquity;
-      }).length || 0;
+      const expense_ratio = results?.fundProfile?.feesExpensesInvestment?.netExpRatio;
+      const marketCap = results?.price?.marketCap;
+      const no_of_stocks = results?.topHoldings?.equityHoldings ?  results?.topHoldings?.equityHoldings.length : -1;
       
-      return { id: code, 
-        name, 
-        alpha, 
-        beta, 
-        r_squared, 
-        sharp_ratio ,
+      const rowData = new OrderedRowData({id: code, 
+        name,
         return_10y,
         return_1y,
         return_3y,
         return_5y,
+
+        alpha_3y,
+        alpha_5y,
+        alpha_10y,
+      
+        beta_3y,
+        beta_5y,
+        beta_10y,
+      
+        standard_deviation_3y,
+        standard_deviation_5y,
+        standard_deviation_10y,
+
+        r_squared_3y,
+        r_squared_5y,
+        r_squared_10y,
+      
+        sharp_ratio_3y,
+        sharp_ratio_5y,
+        sharp_ratio_10y,
+
         morningstar_overall_rating,
         morningstar_risk_rating,
         holdings,
         expense_ratio,
-        no_of_stocks
-      };
+        no_of_stocks,
+        marketCap
+      });
+      return rowData;
     });
   }
 
   // search is not working well. A mutual fund that can be found in yahoofinance
-  // website is not found here. TODO : will see this later
-  // for now, just search the fund in yahoofinance anf get the code to /quote endpoint
+  // website is not found here. TODO : will fix this later
+  // For now, just search the fund in yahoofinance and get the symbol for /quote/{symbol} endpoint
   public static search(
     contains: string
   ): Promise<{ name: string; symbol: string }[] | { error?: string }> {
     return yahooFinance
-      .search(contains, {}, { validateResult: true })
+      .search(contains, {}, { validateResult: false })
       .then((result) => {
         if (result) {
           const funds = result.quotes.filter(
@@ -150,15 +251,30 @@ export class MutualFund {
 }
 
 export class Xls {
-  static export() {
-    const coumnNames = this.keysInOrder(new RowIml());
-
+  static async export(symbols: string[]) {
+    // empty constructor of OrderedRowData creates an empty obj with all column-names as properties of it 
+    const coumnNames = this.keysInOrder(new OrderedRowData());
     const filePath = path.join(__dirname, "my-mf-sheet.xlsx");
+    const dataToXls: (string|Row)[][] = [coumnNames];
+
+    for (let index = 0; index < symbols.length; index++) {
+      const symbol = symbols[index];
+      const quote = await MutualFund.quote(symbol);
+      const values = Xls.valuesInOrderOfKeys(quote);
+      const stringifiedValues = values.map(val =>  {
+        if (Object.prototype.toString.call(val) === '[object Array]' 
+        || Object.prototype.toString.call(val) === '[object Object]') {
+          return JSON.stringify(val);
+        }
+        return val;
+      });
+      dataToXls.push(stringifiedValues);
+    }
 
     const worksheet: WorkSheet[] = [
       {
         name: "My fund worksheet",
-        data: [coumnNames],
+        data: dataToXls,
         options: {},
       },
     ];
